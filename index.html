@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Impressiona Invoice Generator</title>
+<style>
+  :root {
+    --bg: #f5f4f8;
+    --surface: #ffffff;
+    --text: #1d1b26;
+    --muted: #6b6879;
+    --border: #e2e0ea;
+    --accent: #1d1b26;
+    --accent-ink: #ffffff;
+    --gold: #b8923a;
+    --danger: #c0392b;
+    --field: #faf9fc;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121117;
+      --surface: #1c1a24;
+      --text: #f1eff7;
+      --muted: #9b97ab;
+      --border: #2f2c3b;
+      --accent: #e8c470;
+      --accent-ink: #17151d;
+      --gold: #e8c470;
+      --danger: #ff7b6b;
+      --field: #15131c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121117;
+    --surface: #1c1a24;
+    --text: #f1eff7;
+    --muted: #9b97ab;
+    --border: #2f2c3b;
+    --accent: #e8c470;
+    --accent-ink: #17151d;
+    --gold: #e8c470;
+    --danger: #ff7b6b;
+    --field: #15131c;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .brand { font-family: Georgia, "Times New Roman", serif; font-size: 22px; letter-spacing: .5px; }
+  .brand small { display: block; font-family: system-ui, sans-serif; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+    gap: 20px; padding: 20px; max-width: 1280px; margin: 0 auto; align-items: start;
+  }
+  @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--muted); font-weight: 600; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, textarea {
+    width: 100%; font: inherit; color: var(--text); background: var(--field);
+    border: 1px solid var(--border); border-radius: 9px; padding: 10px 11px; outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .row.two { grid-template-columns: 1fr 1fr; }
+  .row:last-child { margin-bottom: 0; }
+  details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  details[open] summary { margin-bottom: 12px; }
+
+  .item { display: grid; grid-template-columns: 1fr 64px 96px 34px; gap: 8px; align-items: end; margin-bottom: 10px; }
+  .item .line { font-size: 12px; color: var(--muted); grid-column: 1 / -1; margin-top: -4px; text-align: right; }
+  .item-head { display: grid; grid-template-columns: 1fr 64px 96px 34px; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .icon-btn {
+    height: 40px; width: 34px; border: 1px solid var(--border); background: transparent;
+    color: var(--danger); border-radius: 9px; cursor: pointer; font-size: 18px; line-height: 1;
+  }
+  .btn {
+    font: inherit; font-weight: 600; border-radius: 10px; padding: 11px 16px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.wa { background: #1fa855; color: #fff; border-color: #1fa855; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn-row .btn { flex: 1 1 140px; }
+  .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+
+  .preview-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); padding: 14px; }
+  @media (min-width: 961px) { .preview-wrap { position: sticky; top: 16px; } }
+
+  /* Invoice paper (always light so the PDF looks the same in any theme) */
+  .invoice {
+    background: #fff; color: #1d1b26; width: 100%; min-width: 560px; max-width: 794px; margin: 0 auto;
+    padding: 44px 44px 36px; font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px; line-height: 1.5;
+  }
+  .invoice .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 20px; border-bottom: 2px solid #1d1b26; }
+  .invoice .logo { font-family: Georgia, "Times New Roman", serif; font-size: 30px; letter-spacing: .5px; line-height: 1.1; }
+  .invoice .tag { font-size: 10px; letter-spacing: 2.4px; text-transform: uppercase; color: #b8923a; margin-top: 4px; }
+  .invoice .biz { margin-top: 10px; color: #6b6879; font-size: 12px; white-space: pre-line; }
+  .invoice .meta { text-align: right; }
+  .invoice .meta .title { font-size: 24px; letter-spacing: 3px; font-weight: 700; }
+  .invoice .meta div { margin-top: 3px; color: #6b6879; }
+  .invoice .meta b { color: #1d1b26; }
+  .invoice .bill { margin: 24px 0 20px; }
+  .invoice .bill .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #b8923a; margin-bottom: 4px; }
+  .invoice .bill .name { font-size: 16px; font-weight: 700; }
+  .invoice .bill div { white-space: pre-line; }
+  .invoice table { width: 100%; border-collapse: collapse; }
+  .invoice th { text-align: left; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; background: #1d1b26; color: #fff; padding: 9px 10px; }
+  .invoice td { padding: 10px; border-bottom: 1px solid #e8e6ef; vertical-align: top; }
+  .invoice th.r, .invoice td.r { text-align: right; }
+  .invoice .totals { margin: 18px 0 0 auto; width: 270px; }
+  .invoice .totals div { display: flex; justify-content: space-between; padding: 5px 0; }
+  .invoice .totals .grand { border-top: 2px solid #1d1b26; margin-top: 6px; padding-top: 10px; font-size: 17px; font-weight: 700; }
+  .invoice .notes { margin-top: 26px; padding: 12px 14px; background: #f7f5ef; border-left: 3px solid #b8923a; font-size: 12px; white-space: pre-line; }
+  .invoice .thanks { margin-top: 30px; text-align: center; color: #6b6879; font-size: 12px; border-top: 1px solid #e8e6ef; padding-top: 14px; }
+  .invoice .ph { color: #b3b0c0; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
+    background: var(--accent); color: var(--accent-ink); padding: 11px 18px; border-radius: 999px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: .25s; max-width: 90vw; text-align: center; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Impressiona<small>Invoice Generator</small></div>
+  <button class="btn" id="resetBtn" type="button">New invoice</button>
+</div>
+
+<div class="layout">
+  <!-- FORM -->
+  <div>
+    <div class="card">
+      <h2>Invoice</h2>
+      <div class="row two">
+        <div><label for="invNo">Invoice no.</label><input id="invNo"></div>
+        <div><label for="invDate">Date</label><input id="invDate" type="date"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Customer</h2>
+      <div class="row"><div><label for="cName">Customer name *</label><input id="cName" placeholder="e.g. Ahmed Khan" autocomplete="off"></div></div>
+      <div class="row two">
+        <div><label for="cPhone">Phone number</label><input id="cPhone" type="tel" inputmode="tel" placeholder="03XX XXXXXXX"></div>
+        <div><label for="cEmail">Email (optional)</label><input id="cEmail" type="email" placeholder="name@email.com"></div>
+      </div>
+      <div class="row"><div><label for="cAddress">Address</label><textarea id="cAddress" placeholder="House / street, area, city"></textarea></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Items</h2>
+      <div class="item-head"><span>Item name</span><span>Qty</span><span>Price</span><span></span></div>
+      <div id="items"></div>
+      <button class="btn" id="addItem" type="button" style="width:100%">+ Add item</button>
+      <div class="row two" style="margin-top:14px">
+        <div><label for="delivery">Delivery charges</label><input id="delivery" type="number" min="0" step="any" value="0" inputmode="decimal"></div>
+        <div><label for="currency">Currency</label><input id="currency" value="Rs"></div>
+      </div>
+      <div class="row" style="margin-top:10px"><div><label for="notes">Notes (optional)</label><textarea id="notes" placeholder="Payment method, order notes, etc."></textarea></div></div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Your business details (saved on this device)</summary>
+        <div class="row two">
+          <div><label for="bPhone">Phone</label><input id="bPhone" placeholder="Business phone"></div>
+          <div><label for="bEmail">Email</label><input id="bEmail" placeholder="Business email"></div>
+        </div>
+        <div class="row"><div><label for="bAddress">Address / social handle</label><textarea id="bAddress" placeholder="City, Instagram, website..."></textarea></div></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Download &amp; send</h2>
+      <div class="btn-row">
+        <button class="btn primary" id="dlBtn" type="button">Download PDF</button>
+        <button class="btn wa" id="waBtn" type="button">Send on WhatsApp</button>
+        <button class="btn" id="mailBtn" type="button">Send by email</button>
+      </div>
+      <p class="hint">On mobile, WhatsApp/Email open the share sheet with the PDF attached. On desktop the PDF downloads and the chat opens, so just attach the file.</p>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview-wrap"><div class="invoice" id="invoice"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let items = [];
+  let uid = 0;
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove("show"), 3200);
+  }
+
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+  function newInvNo() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return "IMP-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + String(Math.floor(Math.random() * 900) + 100);
+  }
+  function fmtDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  }
+  const num = (v) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; };
+  const money = (n) => ($("currency").value.trim() || "Rs") + " " + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  function addItem(focus) {
+    items.push({ id: ++uid, name: "", qty: 1, price: "" });
+    renderItems();
+    if (focus) { const last = document.querySelector(".item:last-child input"); if (last) last.focus(); }
+  }
+
+  function renderItems() {
+    const box = $("items");
+    box.innerHTML = "";
+    items.forEach((it) => {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML =
+        '<input data-k="name" placeholder="Item name" value="' + esc(it.name) + '">' +
+        '<input data-k="qty" type="number" min="1" step="1" inputmode="numeric" value="' + esc(it.qty) + '">' +
+        '<input data-k="price" type="number" min="0" step="any" inputmode="decimal" placeholder="0" value="' + esc(it.price) + '">' +
+        '<button class="icon-btn" type="button" title="Remove item" aria-label="Remove item">&times;</button>' +
+        '<div class="line"></div>';
+      const line = row.querySelector(".line");
+      const updLine = () => { const t = num(it.qty) * num(it.price); line.textContent = t ? "Line total: " + money(t) : ""; };
+      row.querySelectorAll("input").forEach((inp) => {
+        inp.addEventListener("input", () => { it[inp.dataset.k] = inp.value; updLine(); renderInvoice(); });
+      });
+      row.querySelector(".icon-btn").addEventListener("click", () => {
+        items = items.filter((x) => x.id !== it.id);
+        if (!items.length) items.push({ id: ++uid, name: "", qty: 1, price: "" });
+        renderItems(); renderInvoice();
+      });
+      updLine();
+      box.appendChild(row);
+    });
+  }
+
+  function totals() {
+    const sub = items.reduce((s, it) => s + num(it.qty) * num(it.price), 0);
+    const del = num($("delivery").value);
+    return { sub, del, total: sub + del };
+  }
+
+  function invoiceHTML() {
+    const t = totals();
+    const name = $("cName").value.trim();
+    const phone = $("cPhone").value.trim();
+    const email = $("cEmail").value.trim();
+    const addr = $("cAddress").value.trim();
+    const notes = $("notes").value.trim();
+    const bizLines = [$("bAddress").value.trim(), $("bPhone").value.trim(), $("bEmail").value.trim()].filter(Boolean).join("\n");
+    const rows = items.filter((it) => it.name.trim() || num(it.price)).map((it, i) =>
+      "<tr><td>" + (i + 1) + "</td><td>" + esc(it.name || "-") + '</td><td class="r">' + esc(num(it.qty) || 0) +
+      '</td><td class="r">' + money(num(it.price)) + '</td><td class="r"><b>' + money(num(it.qty) * num(it.price)) + "</b></td></tr>"
+    ).join("") || '<tr><td colspan="5" class="ph">Add items to see them here</td></tr>';
+
+    return (
+      '<div class="head"><div><div class="logo">Impressiona</div><div class="tag">Not a Perfume. A Presence.</div>' +
+      (bizLines ? '<div class="biz">' + esc(bizLines) + "</div>" : "") +
+      '</div><div class="meta"><div class="title">INVOICE</div><div>No: <b>' + esc($("invNo").value || "-") +
+      "</b></div><div>Date: <b>" + esc(fmtDate($("invDate").value)) + "</b></div></div></div>" +
+      '<div class="bill"><div class="lbl">Billed to</div><div class="name' + (name ? "" : " ph") + '">' + esc(name || "Customer name") + "</div>" +
+      (addr ? "<div>" + esc(addr) + "</div>" : "") +
+      (phone ? "<div>" + esc(phone) + "</div>" : "") +
+      (email ? "<div>" + esc(email) + "</div>" : "") + "</div>" +
+      '<table><thead><tr><th style="width:36px">#</th><th>Item</th><th class="r" style="width:60px">Qty</th><th class="r" style="width:110px">Price</th><th class="r" style="width:120px">Amount</th></tr></thead><tbody>' +
+      rows + "</tbody></table>" +
+      '<div class="totals"><div><span>Subtotal</span><span>' + money(t.sub) + "</span></div>" +
+      "<div><span>Delivery charges</span><span>" + (t.del ? money(t.del) : "Free") + "</span></div>" +
+      '<div class="grand"><span>Total</span><span>' + money(t.total) + "</span></div></div>" +
+      (notes ? '<div class="notes">' + esc(notes) + "</div>" : "") +
+      '<div class="thanks">Thank you for choosing Impressiona.</div>'
+    );
+  }
+
+  function renderInvoice() { $("invoice").innerHTML = invoiceHTML(); }
+
+  function validate() {
+    if (!$("cName").value.trim()) { toast("Please enter the customer name"); $("cName").focus(); return false; }
+    if (!items.some((it) => it.name.trim() && num(it.qty) > 0 && num(it.price) > 0)) { toast("Add at least one item with qty and price"); return false; }
+    return true;
+  }
+
+  const fileName = () => ("Invoice-" + ($("invNo").value || "IMP") + "-" + ($("cName").value.trim().replace(/[^\w]+/g, "_") || "customer")).replace(/_+$/, "") + ".pdf";
+
+  async function makePdf() {
+    if (typeof html2pdf === "undefined") throw new Error("PDF library failed to load. Check your internet connection.");
+    const holder = document.createElement("div");
+    holder.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#fff;";
+    const sheet = document.createElement("div");
+    sheet.className = "invoice";
+    sheet.style.cssText = "width:794px;max-width:794px;min-width:794px;margin:0;";
+    sheet.innerHTML = invoiceHTML();
+    holder.appendChild(sheet);
+    document.body.appendChild(holder);
+    try {
+      const blob = await html2pdf().set({
+        margin: 0,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 794 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"], avoid: "tr" }
+      }).from(sheet).outputPdf("blob");
+      return blob;
+    } finally {
+      holder.remove();
+    }
+  }
+
+  function saveBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function withBusy(btn, fn) {
+    return async () => {
+      if (!validate()) return;
+      const old = btn.textContent;
+      btn.disabled = true; btn.textContent = "Preparing…";
+      try { await fn(); } catch (e) { if (e && e.name !== "AbortError") toast(e.message || "Something went wrong"); }
+      btn.disabled = false; btn.textContent = old;
+    };
+  }
+
+  function waNumber(raw) {
+    let d = raw.replace(/\D/g, "");
+    if (d.startsWith("00")) d = d.slice(2);
+    else if (d.startsWith("0")) d = "92" + d.slice(1);
+    return d;
+  }
+
+  function summaryText() {
+    const t = totals();
+    return "Hello " + $("cName").value.trim() + ",\nThank you for your order with Impressiona.\nInvoice " + $("invNo").value +
+      " - Total: " + money(t.total) + "\nPlease find your invoice attached.";
+  }
+
+  async function trySharePdf(blob, title, text) {
+    const file = new File([blob], fileName(), { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: title, text: text });
+      return true;
+    }
+    return false;
+  }
+
+  $("dlBtn").addEventListener("click", withBusy($("dlBtn"), async () => {
+    const blob = await makePdf();
+    saveBlob(blob, fileName());
+    toast("PDF downloaded");
+  }));
+
+  $("waBtn").addEventListener("click", withBusy($("waBtn"), async () => {
+    const blob = await makePdf();
+    const text = summaryText();
+    if (await trySharePdf(blob, "Invoice " + $("invNo").value, text)) return;
+    saveBlob(blob, fileName());
+    const n = waNumber($("cPhone").value);
+    const url = (n ? "https://wa.me/" + n : "https://wa.me/") + "?text=" + encodeURIComponent(text);
+    window.open(url, "_blank", "noopener");
+    toast("PDF downloaded. Attach it in the WhatsApp chat.");
+  }));
+
+  $("mailBtn").addEventListener("click", withBusy($("mailBtn"), async () => {
+    const blob = await makePdf();
+    const text = summaryText();
+    if (await trySharePdf(blob, "Invoice " + $("invNo").value, text)) return;
+    saveBlob(blob, fileName());
+    const to = $("cEmail").value.trim();
+    window.location.href = "mailto:" + encodeURIComponent(to).replace("%40", "@") + "?subject=" +
+      encodeURIComponent("Your Impressiona invoice " + $("invNo").value) + "&body=" + encodeURIComponent(text);
+    toast("PDF downloaded. Attach it to the email.");
+  }));
+
+  function resetForm() {
+    ["cName", "cPhone", "cEmail", "cAddress", "notes"].forEach((id) => ($(id).value = ""));
+    $("delivery").value = "0";
+    $("invNo").value = newInvNo();
+    $("invDate").value = todayISO();
+    items = []; addItem(false);
+    renderInvoice();
+  }
+  $("resetBtn").addEventListener("click", () => { resetForm(); toast("New invoice ready"); });
+  $("addItem").addEventListener("click", () => addItem(true));
+
+  ["invNo", "invDate", "cName", "cPhone", "cEmail", "cAddress", "delivery", "notes", "currency", "bPhone", "bEmail", "bAddress"].forEach((id) => {
+    $(id).addEventListener("input", () => {
+      if (id === "currency") renderItems();
+      renderInvoice();
+      if (id[0] === "b") store.set("imp_" + id, $(id).value);
+    });
+  });
+
+  ["bPhone", "bEmail", "bAddress"].forEach((id) => { const v = store.get("imp_" + id); if (v) $(id).value = v; });
+  resetForm();
+})();
+</script>
+</body>
+</html>
