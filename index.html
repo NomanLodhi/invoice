@@ -210,7 +210,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -327,26 +328,41 @@
   const fileName = () => ("Invoice-" + ($("invNo").value || "IMP") + "-" + ($("cName").value.trim().replace(/[^\w]+/g, "_") || "customer")).replace(/_+$/, "") + ".pdf";
 
   async function makePdf() {
-    if (typeof html2pdf === "undefined") throw new Error("PDF library failed to load. Check your internet connection.");
+    if (typeof html2canvas === "undefined" || !window.jspdf) throw new Error("PDF library failed to load. Check your internet connection.");
     const holder = document.createElement("div");
-    holder.style.cssText = "position:absolute;left:0;top:0;width:794px;background:#fff;z-index:-1;";
+    holder.id = "pdfHolder";
+    holder.style.cssText = "position:absolute;left:-10000px;top:0;width:794px;background:#fff;";
     const sheet = document.createElement("div");
     sheet.className = "invoice";
     sheet.style.cssText = "width:794px;max-width:794px;min-width:794px;margin:0;";
     sheet.innerHTML = invoiceHTML();
     holder.appendChild(sheet);
     document.body.appendChild(holder);
-    window.scrollTo(0, 0);
-    await new Promise((r) => setTimeout(r, 150));
     try {
-      const blob = await html2pdf().set({
-        margin: 0,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 794, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"], avoid: "tr" }
-      }).from(sheet).outputPdf("blob");
-      return blob;
+      await new Promise((r) => setTimeout(r, 150));
+      const canvas = await html2canvas(sheet, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 794,
+        scrollX: 0,
+        scrollY: 0,
+        onclone: (doc) => { const h = doc.getElementById("pdfHolder"); if (h) h.style.left = "0px"; }
+      });
+      const jsPDF = window.jspdf.jsPDF;
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pw = 210, ph = 297;
+      const imgH = (canvas.height * pw) / canvas.width;
+      const img = canvas.toDataURL("image/jpeg", 0.98);
+      pdf.addImage(img, "JPEG", 0, 0, pw, imgH);
+      let remaining = imgH - ph, y = 0;
+      while (remaining > 0.5) {
+        y -= ph;
+        pdf.addPage();
+        pdf.addImage(img, "JPEG", 0, y, pw, imgH);
+        remaining -= ph;
+      }
+      return pdf.output("blob");
     } finally {
       holder.remove();
     }
